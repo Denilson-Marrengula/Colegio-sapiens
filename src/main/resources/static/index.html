@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="pt-MZ">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#244b97"><title>Sapiens · Gestão escolar</title>
+<link rel="stylesheet" href="/assets/styles.css"><script src="/assets/app.js" defer></script>
+</head>
+<body>
+<div id="login-screen" class="login-screen">
+  <section class="welcome">
+    <div class="brand"><span class="brand-icon" aria-hidden="true">◈</span><div>SAPIENS<small>COLÉGIO</small></div></div>
+    <div class="welcome-copy"><span class="eyebrow">UMA ESCOLA MAIS PRÓXIMA</span><h1>O futuro aprende-se<br>em conjunto.</h1><p>Gestão escolar simples.<br>Pessoas ligadas. Mais tempo para ensinar.</p></div>
+    <div class="school-flow"><span>Escola</span><i>→</i><span>Sapiens</span><i>→</i><span>Famílias</span></div>
+    <div class="welcome-bottom">Sistema de gestão escolar · Colégio Sapiens</div>
+  </section>
+  <section class="login-side">
+    <div class="login-card">
+      <span class="eyebrow">BEM-VINDO AO SAPIENS</span><h2>Bem-vindo de volta!</h2><p class="muted">Entre na sua conta para continuar.</p>
+      <form id="login-form">
+        <label for="login-username">Nome de utilizador</label><input id="login-username" name="username" autocomplete="username" required placeholder="O seu nome de utilizador">
+        <label for="login-password">Palavra-passe</label><div class="password-wrap"><input id="login-password" name="password" type="password" autocomplete="current-password" required placeholder="A sua palavra-passe"><button type="button" id="toggle-password" class="password-toggle" aria-label="Mostrar palavra-passe">Mostrar</button></div>
+        <p id="login-error" class="error" role="alert" hidden></p><button type="submit" class="primary login-submit">Entrar <span>→</span></button>
+      </form>
+      <button class="text-button" id="forgot-password">Esqueceu a palavra-passe?</button><p id="recovery-help" class="help" hidden>Contacte a administração do colégio para recuperar o acesso à sua conta.</p>
+      <div class="login-note">Gestão académica e acesso por perfil.</div>
+    </div>
+    <footer>Colégio Sapiens · Aprender. Crescer. Comunicar.</footer>
+  </section>
+</div>
+<div id="app-screen" class="app-shell" hidden>
+  <aside class="sidebar">
+    <a class="brand" href="#dashboard"><span class="brand-icon" aria-hidden="true">◈</span><div>SAPIENS<small>COLÉGIO</small></div></a>
+    <div class="nav-caption">ESPAÇO DE GESTÃO</div><nav id="navigation" aria-label="Navegação principal"></nav>
+    <div class="sidebar-bottom"><button id="profile-button"><span aria-hidden="true">○</span> Meu perfil</button><button id="logout-button"><span aria-hidden="true">↪</span> Terminar sessão</button></div>
+  </aside>
+  <div class="app-main">
+    <header class="topbar"><button id="menu-toggle" class="icon-button mobile-only" aria-label="Abrir menu">☰</button><span id="breadcrumb">Painel de gestão</span><div class="account"><span id="account-label"></span><span class="avatar" id="avatar"></span></div></header>
+    <main id="content" tabindex="-1"></main>
+    <footer class="app-footer">Sapiens · Colégio <span id="footer-role"></span></footer>
+  </div>
+</div>
+<dialog id="modal"><div class="modal-header"><div><span class="eyebrow" id="modal-eyebrow">GESTÃO ESCOLAR</span><h2 id="modal-title"></h2></div><button id="close-modal" class="icon-button" aria-label="Fechar">×</button></div><div id="modal-body"></div></dialog>
+<div id="toast" class="toast" role="status" hidden></div>
+</body></html>
