@@ -4,6 +4,7 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.*;
 import mz.colegiosapi.model.*;
 import mz.colegiosapi.repo.*;
+import mz.colegiosapi.service.ContaAcademicaService;
 import org.springframework.http.HttpStatus;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -17,15 +18,19 @@ import java.util.Set;
 @RestController
 @RequestMapping("/api/alunos")
 public class AlunoController {
-
     private final AlunoRepository alunos;
     private final TurmaRepository turmas;
     private final EncarregadoRepository encarregados;
+    private final UserRepository users;
+    private final ContaAcademicaService contas;
 
-    public AlunoController(AlunoRepository a, TurmaRepository t, EncarregadoRepository e) {
+    public AlunoController(AlunoRepository a, TurmaRepository t, EncarregadoRepository e, UserRepository users,
+            ContaAcademicaService contas) {
         alunos = a;
         turmas = t;
         encarregados = e;
+        this.users = users;
+        this.contas = contas;
     }
 
     @GetMapping
@@ -47,7 +52,9 @@ public class AlunoController {
     public Aluno create(@Valid @RequestBody AlunoRequest req) {
         Aluno a = new Aluno();
         apply(a, req);
-        return alunos.save(a);
+        Aluno saved = alunos.saveAndFlush(a);
+        contas.criar(saved);
+        return saved;
     }
 
     @PutMapping("/{id}")
@@ -56,14 +63,20 @@ public class AlunoController {
     public Aluno update(@PathVariable Long id, @Valid @RequestBody AlunoRequest req) {
         Aluno a = findAluno(id);
         apply(a, req);
+        users.findByAlunoId(id).ifPresent(u -> u.setNome(a.getNome()));
         return alunos.save(a);
     }
 
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @PreAuthorize("hasRole('ADMIN')")
+    @Transactional
     public void delete(@PathVariable Long id) {
-        alunos.delete(findAluno(id));
+        Aluno a = findAluno(id);
+        if (users.findByAlunoId(id).isPresent())
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Aluno com conta ligada: desactive a conta para suspender o acesso");
+        alunos.delete(a);
     }
 
     @PutMapping("/{alunoId}/encarregados/{encarregadoId}")
@@ -72,9 +85,8 @@ public class AlunoController {
     public Aluno associate(@PathVariable Long alunoId, @PathVariable Long encarregadoId) {
         Aluno a = findAluno(alunoId);
         Encarregado e = encarregados.findById(encarregadoId).orElseThrow(() -> notFound("Encarregado não encontrado"));
-        if (a.getEncarregados().stream().noneMatch(existing -> existing.getId().equals(encarregadoId))) {
+        if (a.getEncarregados().stream().noneMatch(existing -> existing.getId().equals(encarregadoId)))
             a.getEncarregados().add(e);
-        }
         return alunos.save(a);
     }
 
@@ -94,9 +106,8 @@ public class AlunoController {
         a.setTurma(turmas.findById(req.turmaId()).orElseThrow(() -> notFound("Turma não encontrada")));
         Set<Long> ids = req.encarregadoIds() == null ? Set.of() : req.encarregadoIds();
         List<Encarregado> found = encarregados.findAllById(ids);
-        if (found.size() != ids.size()) {
+        if (found.size() != ids.size())
             throw notFound("Um ou mais encarregados não foram encontrados");
-        }
         a.setEncarregados(new LinkedHashSet<>(found));
     }
 
@@ -108,9 +119,8 @@ public class AlunoController {
         return new ResponseStatusException(HttpStatus.NOT_FOUND, message);
     }
 
-    public record AlunoRequest(@NotBlank
-            @Size(max = 120) String nome, @NotBlank
-            @Size(max = 30) String numeroMatricula,
-            @PastOrPresent LocalDate dataNascimento, @NotNull
-            @Positive Long turmaId, Set<@NotNull @Positive Long> encarregadoIds) {}
+    public record AlunoRequest(@NotBlank @Size(max = 120) String nome, @NotBlank @Size(max = 30) String numeroMatricula,
+            @PastOrPresent LocalDate dataNascimento, @NotNull @Positive Long turmaId,
+            Set<@NotNull @Positive Long> encarregadoIds) {
+    }
 }

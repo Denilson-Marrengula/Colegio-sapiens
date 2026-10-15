@@ -1,12 +1,14 @@
 package mz.colegiosapi.model;
 
 import jakarta.persistence.*;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import java.util.LinkedHashSet;
+import java.util.Set;
 import jakarta.validation.constraints.*;
 
 @Entity
 @Table(name = "professores", uniqueConstraints = @UniqueConstraint(columnNames = "numero_funcionario"))
 public class Professor {
-
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -23,6 +25,18 @@ public class Professor {
     private String email;
     @Size(max = 30)
     private String telefone;
+    @JsonIgnore
+    @ManyToMany(fetch = FetchType.LAZY)
+    @JoinTable(name = "professor_turma", joinColumns = @JoinColumn(name = "professor_id"), inverseJoinColumns = @JoinColumn(name = "turma_id"))
+    private Set<Turma> turmas = new LinkedHashSet<>();
+
+    public Set<Turma> getTurmas() {
+        return turmas;
+    }
+
+    public void setTurmas(Set<Turma> values) {
+        turmas = values;
+    }
 
     public Long getId() {
         return id;

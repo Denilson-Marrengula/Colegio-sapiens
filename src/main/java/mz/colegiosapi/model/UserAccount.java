@@ -7,7 +7,6 @@ import java.time.Instant;
 @Entity
 @Table(name = "utilizadores", uniqueConstraints = @UniqueConstraint(columnNames = "username"))
 public class UserAccount {
-
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -29,6 +28,66 @@ public class UserAccount {
     private boolean activo = true;
     @Column(nullable = false, updatable = false)
     private Instant criadoEm = Instant.now();
+    @JsonIgnore
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "encarregado_id", unique = true)
+    private Encarregado encarregado;
+    @JsonIgnore
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "professor_id", unique = true)
+    private Professor professor;
+    @JsonIgnore
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "aluno_id", unique = true)
+    private Aluno aluno;
+
+    public Professor getProfessor() {
+        return professor;
+    }
+
+    public void setProfessor(Professor p) {
+        professor = p;
+    }
+
+    public Aluno getAluno() {
+        return aluno;
+    }
+
+    public void setAluno(Aluno a) {
+        aluno = a;
+    }
+
+    public boolean temCadastro() {
+        return encarregado != null || professor != null || aluno != null;
+    }
+
+    @PrePersist
+    @PreUpdate
+    private void validarCadastro() {
+        int links = (encarregado != null ? 1 : 0) + (professor != null ? 1 : 0) + (aluno != null ? 1 : 0);
+        if (links > 1 || (encarregado != null && role != Role.ENCARREGADO)
+                || (professor != null && role != Role.PROFESSOR) || (aluno != null && role != Role.ALUNO))
+            throw new IllegalStateException("A conta deve ter apenas um cadastro e perfil correspondente");
+    }
+
+    @Column(nullable = false)
+    private boolean credenciaisDefinidas = true;
+
+    public Encarregado getEncarregado() {
+        return encarregado;
+    }
+
+    public void setEncarregado(Encarregado e) {
+        encarregado = e;
+    }
+
+    public boolean isCredenciaisDefinidas() {
+        return credenciaisDefinidas;
+    }
+
+    public void setCredenciaisDefinidas(boolean v) {
+        credenciaisDefinidas = v;
+    }
 
     public Long getId() {
         return id;

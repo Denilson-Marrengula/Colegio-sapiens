@@ -4,9 +4,8 @@ import jakarta.persistence.*;
 import jakarta.validation.constraints.*;
 
 @Entity
-@Table(name = "turmas", uniqueConstraints = @UniqueConstraint(columnNames = {"codigo", "ano_letivo"}))
+@Table(name = "turmas", uniqueConstraints = @UniqueConstraint(columnNames = { "codigo", "ano_letivo" }))
 public class Turma {
-
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;

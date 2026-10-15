@@ -9,14 +9,14 @@ const icons = {dashboard:'⌂',utilizadores:'♙',turmas:'▤',alunos:'♧',prof
 const escapeHTML = value => String(value ?? '').replace(/[&<>"']/g, character => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[character]));
 const initials = name => String(name || '?').trim().split(/\s+/).slice(0,2).map(part => part[0]).join('').toUpperCase();
 const canWrite = () => writers.includes(state.user?.role);
-const canManageUser = user => state.user?.role==='ADMIN' || state.user?.role==='SECRETARIA' && !privileged.includes(user.role);
+const canManageUser = user => state.user?.role==='ADMIN' || state.user?.role==='SECRETARIA' && !user.encarregadoId && !user.professorId && !user.alunoId && !privileged.includes(user.role);
 const pageTitle = {dashboard:'Painel de gestão',utilizadores:'Utilizadores',turmas:'Turmas',alunos:'Alunos',professores:'Professores',encarregados:'Encarregados',integracoes:'Central de Integrações',comunicacao:'Canais de Comunicação',reunioes:'Reuniões',relatorios:'Relatórios',perfil:'Meu perfil'};
 const readable = type => {
   if(type==='utilizadores') return writers.includes(state.user?.role);
   if(type==='alunos'||type==='encarregados') return management.includes(state.user?.role);
   return [...management,'PROFESSOR'].includes(state.user?.role);
 };
-const endpoint = type => type==='utilizadores'?'/api/auth/utilizadores':'/api/'+type;
+const endpoint = type => type==='utilizadores'?'/api/auth/utilizadores':type==='turmas'&&state.user?.role==='PROFESSOR'?'/api/professores/minhas-turmas':'/api/'+type;
 const dateText = date => date ? new Intl.DateTimeFormat('pt-MZ').format(new Date(date+'T12:00:00')) : 'Não indicada';
 function toast(message, failure=false) {
   const node=$('#toast'); node.textContent=message;node.classList.toggle('failure',failure);node.hidden=false;
@@ -57,7 +57,7 @@ function heading(title,description,action='') {
   return '<div class="page-heading"><div><span class="eyebrow">COLÉGIO SAPIENS</span><h1>'+escapeHTML(title)+'</h1><p>'+escapeHTML(description)+'</p></div>'+action+'</div>';
 }
 function nav() {
-  const entries=[['dashboard','Dashboard'],['utilizadores','Utilizadores'],['turmas','Turmas'],['alunos','Alunos'],['professores','Professores'],['encarregados','Encarregados'],['integracoes','Integrações'],['comunicacao','Comunicação'],['reunioes','Reuniões'],['relatorios','Relatórios']];
+  const entries=[['dashboard','Dashboard'],['utilizadores','Utilizadores'],['turmas',pageTitle.turmas],['alunos','Alunos'],['professores','Professores'],['encarregados','Encarregados'],['integracoes','Integrações'],['comunicacao','Comunicação'],['reunioes','Reuniões'],['relatorios','Relatórios']];
   $('#navigation').innerHTML=entries.filter(([id])=>!(id in schemas)||readable(id)).map(([id,label])=>'<a href="#'+id+'" class="'+(state.page===id?'active':'')+'" '+(state.page===id?'aria-current="page"':'')+'><span aria-hidden="true">'+icons[id]+'</span>'+label+(['integracoes','comunicacao','reunioes'].includes(id)?'<span class="nav-dot" title="Em preparação"></span>':'')+'</a>').join('');
 }
 async function renderPage() {
@@ -90,7 +90,7 @@ function renderDashboard() {
   const role=state.user.role, academic=management.includes(role)||role==='PROFESSOR';
   const types=(writers.includes(role)?['utilizadores']:[]).concat(['turmas','alunos','professores','encarregados'].filter(readable)).slice(0,4);
   $('#content').innerHTML=heading('Olá, '+state.user.nome+'!','Aqui está o estado dos registos do colégio hoje.')+
-  (academic?'<div class="cards">'+types.map(type=>'<a class="stat-card" href="#'+type+'"><div class="stat-top">'+pageTitle[type]+'<span class="stat-icon" aria-hidden="true">'+icons[type]+'</span></div><div class="stat-value">'+state.cache[type].length+'</div><div class="stat-caption">Registos na base do colégio →</div></a>').join('')+'</div>':'<div class="notice"><b>Bem-vindo ao seu espaço.</b> O acesso individual a dados de alunos e encarregados ficará disponível numa próxima etapa.</div>')+
+  (academic?'<div class="cards">'+types.map(type=>'<a class="stat-card" href="#'+type+'"><div class="stat-top">'+pageTitle[type]+'<span class="stat-icon" aria-hidden="true">'+icons[type]+'</span></div><div class="stat-value">'+state.cache[type].length+'</div><div class="stat-caption">'+(type==='turmas'&&role==='PROFESSOR'?'Turmas atribuídas a si':'Registos na base do colégio')+' →</div></a>').join('')+'</div>':'<div class="notice"><b>Bem-vindo ao seu espaço.</b> O acesso individual a dados de alunos e encarregados ficará disponível numa próxima etapa.</div>')+
   '<div class="dashboard-grid"><section class="panel"><div class="panel-header"><h2>Acesso rápido</h2><span class="badge blue">O seu espaço</span></div><div class="panel-body quick-links">'+
   (academic?['turmas','alunos','professores','encarregados'].filter(readable).map(type=>'<a class="quick-link" href="#'+type+'"><b>'+pageTitle[type]+' →</b><span>Consultar '+(canWrite()?'e gerir ':'')+'os registos</span></a>').join(''):'<a class="quick-link" href="#perfil"><b>Meu perfil →</b><span>Consultar os dados da sua conta</span></a>')+
   '</div></section><section class="panel"><div class="panel-header"><h2>Estado das funcionalidades</h2></div><div class="panel-body"><div class="status-row"><span>Cadastros académicos</span><span class="badge">Disponível</span></div><div class="status-row"><span>Integração externa</span><span class="badge inactive">Em preparação</span></div><div class="status-row"><span>Comunicação e reuniões</span><span class="badge inactive">Em preparação</span></div></div></section></div>';
@@ -104,6 +104,7 @@ const schemas = {
 };
 function rowActions(type,row) {
   let html='<button data-action="view" data-id="'+row.id+'">Ver</button>';
+  if(type==='professores' && (management.includes(state.user.role)||row.id===state.user.professorId))html+='<button data-action="classes" data-id="'+row.id+'">Turmas</button>';
   if(canWrite() && (type!=='utilizadores'||canManageUser(row)))html+='<button data-action="edit" data-id="'+row.id+'">Editar</button>';
   if(state.user.role==='ADMIN'&&type!=='utilizadores')html+='<button class="danger" data-action="delete" data-id="'+row.id+'">Apagar</button>';
   if(state.user.role==='ADMIN'&&type==='utilizadores'&&row.id!==state.user.id)html+='<button '+(row.activo?'class="danger"':'')+' data-action="state" data-id="'+row.id+'">'+(row.activo?'Desactivar':'Activar')+'</button>';
@@ -112,7 +113,7 @@ function rowActions(type,row) {
 const person = (name,subtitle) => '<div class="row-name"><span class="avatar">'+escapeHTML(initials(name))+'</span><div><strong>'+escapeHTML(name)+'</strong>'+(subtitle?'<small>'+escapeHTML(subtitle)+'</small>':'')+'</div></div>';
 function rowHTML(type,row) {
   const values={
-    utilizadores:()=>[person(row.nome,row.username),escapeHTML(labels[row.role]),'<span class="badge '+(row.activo?'':'inactive')+'">'+(row.activo?'Activo':'Inactivo')+'</span>',escapeHTML(row.email||row.telefone||'—')],
+    utilizadores:()=>[person(row.nome,row.username),escapeHTML(labels[row.role]),'<span class="badge '+(row.activo?'':'inactive')+'">'+(row.activo?'Activo':row.credenciaisDefinidas===false?'Aguarda palavra-passe':'Inactivo')+'</span>',escapeHTML(row.email||row.telefone||'—')],
     turmas:()=>['<strong>'+escapeHTML(row.codigo)+'</strong>',escapeHTML(row.classe),row.anoLetivo,escapeHTML(row.turno||'—')],
     alunos:()=>[person(row.nome,row.dataNascimento?dateText(row.dataNascimento):''),escapeHTML(row.numeroMatricula),escapeHTML(row.turma?.codigo||'—'),escapeHTML((row.encarregados||[]).map(item=>item.nome).join(', ')||'Nenhum associado')],
     professores:()=>[person(row.nome),escapeHTML(row.numeroFuncionario),escapeHTML(row.email||'—'),escapeHTML(row.telefone||'—')],
@@ -136,7 +137,7 @@ function updateTable() {
 }
 function renderList() {
   const type=state.page,schema=schemas[type];
-  $('#content').innerHTML=heading(pageTitle[type],schema.description,canWrite()?'<button id="new-record" class="primary">+ Novo '+schema.singular+'</button>':'')+
+  $('#content').innerHTML=heading(pageTitle[type],type==='turmas'&&state.user.role==='PROFESSOR'?'Consulte as turmas que lhe foram atribuídas.':schema.description,(canWrite()&&(type!=='utilizadores'||state.user.role==='ADMIN'))?'<button id="new-record" class="primary">+ Novo '+schema.singular+'</button>':'')+
   '<section class="panel"><div class="toolbar"><input class="search" id="search" aria-label="Pesquisar '+type+'" placeholder="Pesquisar '+type+'…"><button class="secondary" id="refresh">Actualizar</button></div>'+
   (type==='utilizadores'?'<div class="tabs">'+['Todos',...Object.keys(labels)].map(role=>'<button data-role="'+role+'" class="tab '+(role==='Todos'?'active':'')+'">'+(labels[role]||role)+'</button>').join('')+'</div>':'')+
   '<div class="table-wrap"><table><thead><tr>'+schema.columns.map(column=>'<th scope="col">'+column+'</th>').join('')+'</tr></thead><tbody id="table-body"></tbody></table></div><div class="table-footer"><span id="row-count"></span><div><button id="previous-page" class="secondary">Anterior</button> <span id="page-number"></span> <button id="next-page" class="secondary">Seguinte</button></div></div></section>';
@@ -147,6 +148,7 @@ function renderList() {
   $('#table-body').onclick=event=>{
     const button=event.target.closest('[data-action]');if(!button)return;
     const row=state.cache[type].find(item=>item.id===Number(button.dataset.id));if(!row)return;
+    if(button.dataset.action==='classes')openProfessorClasses(row);
     if(button.dataset.action==='view')openDetails(type,row);
     if(button.dataset.action==='edit')openEditor(type,row);
     if(button.dataset.action==='delete')confirmMutation(type,row,false);
@@ -154,6 +156,33 @@ function renderList() {
   };
 }
 function openModal(title,html) {$('#modal-title').textContent=title;$('#modal-body').innerHTML=html;if(!$('#modal').open)$('#modal').showModal();}
+async function openProfessorClasses(professor) {
+  const generation=state.generation,page=state.page,path='/api/professores/'+professor.id+'/turmas';
+  try {
+    const editable=canWrite();
+    const [assigned,available]=await Promise.all([api(path),editable?api('/api/turmas'):Promise.resolve([])]);
+    if(!state.user||generation!==state.generation||page!==state.page)return;
+    const selected=new Set(assigned.map(t=>t.id));
+    const list=editable?available:assigned;
+    const items=list.map(t=>editable?
+      '<label><input type="checkbox" name="turmaIds" value="'+t.id+'" '+(selected.has(t.id)?'checked':'')+'>'+escapeHTML(t.codigo+' · '+t.classe+' · '+t.anoLetivo+(t.turno?' · '+t.turno:''))+'</label>':
+      '<p>'+escapeHTML(t.codigo+' · '+t.classe+' · '+t.anoLetivo)+'</p>').join('');
+    openModal('Turmas de '+professor.nome,'<form id="classes-form" class="modal-content"><p class="muted">'+(editable?'Seleccione as turmas deste professor. Retirar uma selecção remove a atribuição.':'Turmas atribuídas a este professor.')+'</p><div class="checkbox-list">'+(items||'<p class="form-help">'+(editable?'Crie primeiro uma turma.':'Ainda não há turmas atribuídas.')+'</p>')+'</div><p class="error" id="form-error" role="alert" hidden></p><div class="modal-actions"><button type="button" class="secondary" data-close>Fechar</button>'+(editable?'<button type="submit" class="primary">Guardar atribuições</button>':'')+'</div></form>');
+    $('[data-close]').onclick=()=>$('#modal').close();
+    $('#classes-form').onsubmit=async event=>{
+      event.preventDefault();if(!editable)return;
+      const form=event.currentTarget,button=form.querySelector('[type=submit]');button.disabled=true;
+      $('#form-error').hidden=true;
+      const turmaIds=new FormData(form).getAll('turmaIds').map(Number);
+      try {
+        await api(path,{method:'PUT',body:{turmaIds}});
+        if(generation!==state.generation)return;
+        $('#modal').close();toast('Atribuições guardadas com sucesso.');delete state.cache.turmas;
+      }catch(error){if($('#form-error')){$('#form-error').textContent=error.message;$('#form-error').hidden=false;}}
+      finally{button.disabled=false;}
+    };
+  }catch(error){if(state.user&&generation===state.generation)toast(error.message,true);}
+}
 function openDetails(type,row) {
   let entries;
   if(type==='alunos')entries={Nome:row.nome,Matrícula:row.numeroMatricula,'Data de nascimento':dateText(row.dataNascimento),Turma:row.turma?.codigo,Encarregados:(row.encarregados||[]).map(item=>item.nome).join(', ')||'Nenhum associado'};
@@ -201,13 +230,14 @@ async function openEditor(type,row=null) {
   }catch(error){toast(error.message,true);}
 }
 function openUserWizard(row=null) {
-  const data={nome:row?.nome||'',username:row?.username||'',email:row?.email||'',telefone:row?.telefone||'',role:row?.role||'PROFESSOR',password:''};
+  const data={nome:row?.nome||'',username:row?.username||'',email:row?.email||'',telefone:row?.telefone||'',role:row?.role||'SECRETARIA',password:''};
   let step=0;
-  const allowedRoles=state.user.role==='ADMIN'?Object.keys(labels):['PROFESSOR','ALUNO','ENCARREGADO'];
+  const linked=row?.encarregadoId||row?.professorId||row?.alunoId;
+  const allowedRoles=linked?[row.role]:(state.user.role==='ADMIN'?Object.keys(labels).filter(role=>!['PROFESSOR','ALUNO','ENCARREGADO'].includes(role)||role===row?.role):(row?[row.role]:[]));
   function paint() {
     let body;
     if(step===0)body='<div class="form-grid">'+field('nome','Nome completo',data.nome,{required:true,max:120,full:true})+field('telefone','Telefone',data.telefone,{type:'tel',max:30})+field('email','E-mail',data.email,{type:'email',max:160})+'</div>';
-    if(step===1)body='<div class="form-grid">'+field('username','Nome de utilizador',data.username,{required:true,max:60,full:true})+field('password','Palavra-passe'+(row?' (opcional)':''),data.password,{type:'password',required:!row,min:8,max:72,full:true,help:row?'Deixe vazio para manter a palavra-passe actual.':'Use entre 8 e 72 caracteres.'})+field('role','Perfil',data.role,{required:true,full:true,options:allowedRoles.map(role=>[role,labels[role]])})+'</div>';
+    if(step===1)body='<div class="form-grid">'+field('username','Nome de utilizador',data.username,{required:true,max:60,full:true})+field('password','Palavra-passe'+(row?' (opcional)':''),data.password,{type:'password',required:!row||row.credenciaisDefinidas===false,min:8,max:72,full:true,help:row?.credenciaisDefinidas===false?'Defina a palavra-passe inicial antes de activar.':row?'Deixe vazio para manter a palavra-passe actual.':'Use entre 8 e 72 caracteres.'})+field('role','Perfil',data.role,{required:true,full:true,options:allowedRoles.map(role=>[role,labels[role]])})+'</div>';
     if(step===2)body='<div class="notice"><b>Permissões do perfil '+escapeHTML(labels[data.role])+'.</b><br>'+escapeHTML(permissionText(data.role))+'</div><p class="muted">As permissões são atribuídas pelo perfil e verificadas pelo servidor.</p>';
     if(step===3)body='<dl class="review-list">'+Object.entries({Nome:data.nome,Utilizador:data.username,'E-mail':data.email||'—',Telefone:data.telefone||'—',Perfil:labels[data.role]}).map(([key,value])=>'<dt>'+key+'</dt><dd>'+escapeHTML(value)+'</dd>').join('')+'</dl>';
     openModal((row?'Editar':'Criar')+' utilizador','<form class="modal-content" id="user-form"><div class="wizard-steps">'+['Dados pessoais','Perfil','Permissões','Confirmar'].map((label,index)=>'<span class="wizard-step '+(index===step?'active':'')+'"><b>'+(index+1)+'</b>'+label+'</span>').join('')+'</div>'+body+'<p class="error" id="form-error" role="alert" hidden></p><div class="modal-actions"><button type="button" class="secondary" data-close>Cancelar</button>'+(step?'<button type="button" class="secondary" id="wizard-back">Anterior</button>':'')+'<button class="primary" type="submit">'+(step===3?'Guardar utilizador':'Seguinte →')+'</button></div></form>');
@@ -233,7 +263,7 @@ function openUserWizard(row=null) {
   paint();
 }
 function permissionText(role) {
-  const text={ADMIN:'Pode gerir utilizadores, cadastrar, editar e apagar registos académicos.',SECRETARIA:'Pode cadastrar e editar dados académicos e criar contas de professor, aluno e encarregado.',DIRECTOR:'Pode consultar turmas, professores, alunos e encarregados.',COORDENADOR:'Pode consultar turmas, professores, alunos e encarregados.',PROFESSOR:'Pode consultar turmas e professores. O acesso individual a turmas e reuniões será acrescentado numa próxima etapa.',ALUNO:'Pode entrar na plataforma e consultar o seu perfil. O acesso individual aos dados académicos está em preparação.',ENCARREGADO:'Pode entrar na plataforma e consultar o seu perfil. O acesso aos dados dos educandos está em preparação.'};
+  const text={ADMIN:'Pode gerir utilizadores, cadastrar, editar e apagar registos académicos.',SECRETARIA:'Pode cadastrar e editar dados académicos e criar contas de professor, aluno e encarregado.',DIRECTOR:'Pode consultar turmas, professores, alunos e encarregados.',COORDENADOR:'Pode consultar turmas, professores, alunos e encarregados.',PROFESSOR:'Pode consultar as turmas que lhe foram atribuídas e os professores. As reuniões continuam em preparação.',ALUNO:'Pode entrar na plataforma e consultar o seu perfil. O acesso individual aos dados académicos está em preparação.',ENCARREGADO:'Pode entrar na plataforma e consultar o seu perfil. O acesso aos dados dos educandos está em preparação.'};
   return text[role];
 }
 function confirmMutation(type,row,isState) {
@@ -249,7 +279,28 @@ function confirmMutation(type,row,isState) {
 }
 function renderProfile() {
   const u=state.user;
-  $('#content').innerHTML=heading('Meu perfil','Informações da sua conta no Colégio Sapiens.')+'<section class="panel"><div class="panel-header"><h2>'+escapeHTML(u.nome)+'</h2><span class="badge">'+escapeHTML(labels[u.role])+'</span></div><div class="panel-body profile-grid">'+Object.entries({'Nome de utilizador':u.username,Perfil:labels[u.role],'E-mail':u.email||'Não indicado',Telefone:u.telefone||'Não indicado'}).map(([label,value])=>'<div class="profile-item"><span>'+label+'</span><b>'+escapeHTML(value)+'</b></div>').join('')+'</div></section><div class="notice" style="margin-top:22px">'+escapeHTML(permissionText(u.role))+'</div>';
+  $('#content').innerHTML=heading('Meu perfil','Informações da sua conta no Colégio Sapiens.')+'<section class="panel"><div class="panel-header"><h2>'+escapeHTML(u.nome)+'</h2><span class="badge">'+escapeHTML(labels[u.role])+'</span></div><div class="panel-body profile-grid">'+Object.entries({'Nome de utilizador':u.username,Perfil:labels[u.role],'E-mail':u.email||'Não indicado',Telefone:u.telefone||'Não indicado'}).map(([label,value])=>'<div class="profile-item"><span>'+label+'</span><b>'+escapeHTML(value)+'</b></div>').join('')+'</div></section><div class="notice" style="margin-top:22px">'+escapeHTML(permissionText(u.role))+'</div><p><button class="secondary" id="change-password">Alterar palavra-passe</button></p>';
+  $('#change-password').onclick=openPasswordForm;
+}
+function openPasswordForm() {
+  openModal('Alterar palavra-passe','<form class="modal-content" id="password-form">'+
+    field('currentPassword','Palavra-passe actual','',{type:'password',required:true,full:true})+
+    field('newPassword','Nova palavra-passe','',{type:'password',required:true,min:8,max:72,full:true})+
+    '<p class="error" id="form-error" role="alert" hidden></p><div class="modal-actions"><button type="button" data-close>Cancelar</button><button class="primary" type="submit">Guardar</button></div></form>');
+  $('[data-close]').onclick=()=>$('#modal').close();
+  $('#password-form').onsubmit=async event=>{
+    event.preventDefault();
+    const button=event.currentTarget.querySelector('[type=submit]');
+    const generation=state.generation;
+    button.disabled=true;
+    try {
+      await api('/api/auth/password',{method:'PUT',body:Object.fromEntries(new FormData(event.currentTarget))});
+      if(generation!==state.generation)return;
+      $('#modal').close();logout('Palavra-passe alterada. Entre novamente com a nova palavra-passe.');
+    } catch(error) {
+      if($('#form-error')){$('#form-error').textContent=error.message;$('#form-error').hidden=false;}
+    } finally {button.disabled=false;}
+  };
 }
 function renderModule(page) {
   const notice='<div class="notice"><b>Funcionalidade em preparação.</b> Esta área segue o protótipo dos designers. A integração com os serviços necessários ainda não está implementada.</div>';
@@ -270,6 +321,7 @@ function exportCSV(type) {
   const link=document.createElement('a');link.href=url;link.download='sapiens-'+type+'.csv';link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
 }
 function refreshAccount() {
+  pageTitle.turmas=state.user.role==='PROFESSOR'?'Minhas turmas':'Turmas';
   $('#account-label').textContent=state.user.nome;$('#avatar').textContent=initials(state.user.nome);$('#footer-role').textContent=labels[state.user.role];
 }
 $('#login-form').onsubmit=async event=>{

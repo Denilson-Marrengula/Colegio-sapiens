@@ -19,33 +19,34 @@ import org.springframework.security.web.SecurityFilterChain;
 @Configuration
 @EnableMethodSecurity
 public class SecurityConfig {
+  @Bean
+  PasswordEncoder passwordEncoder() {
+    return new BCryptPasswordEncoder();
+  }
 
-    @Bean
-    PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder();
-    }
+  @Bean
+  UserDetailsService userDetailsService(UserRepository users) {
+    return username -> users.findByUsername(username)
+        .map(a -> User.withUsername(a.getUsername()).password(a.getPasswordHash())
+            .roles(a.getRole().name()).disabled(!a.isActivo() || !a.isCredenciaisDefinidas()).build())
+        .orElseThrow(() -> new UsernameNotFoundException("Utilizador não encontrado"));
+  }
 
-    @Bean
-    UserDetailsService userDetailsService(UserRepository users) {
-        return username -> users.findByUsername(username)
-                .map(a -> User.withUsername(a.getUsername()).password(a.getPasswordHash())
-                        .roles(a.getRole().name()).disabled(!a.isActivo()).build())
-                .orElseThrow(() -> new UsernameNotFoundException("Utilizador não encontrado"));
-    }
+  @Bean
+  AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
+    return config.getAuthenticationManager();
+  }
 
-    @Bean
-    AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
-        return config.getAuthenticationManager();
-    }
-
-    @Bean
-    SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-        return http.csrf(csrf -> csrf.disable())
-                .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .authorizeHttpRequests(a -> a
-                        .requestMatchers("/", "/index.html", "/assets/**", "/favicon.ico", "/api/auth/login", "/api/health", "/error").permitAll()
-                        .anyRequest().authenticated())
-                .headers(headers -> headers.frameOptions(frame -> frame.sameOrigin()))
-                .httpBasic(Customizer.withDefaults()).build();
-    }
+  @Bean
+  SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    return http.csrf(csrf -> csrf.disable())
+        .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+        .authorizeHttpRequests(a -> a
+            .requestMatchers("/", "/index.html", "/assets/**", "/favicon.ico", "/api/auth/login", "/api/health",
+                "/error")
+            .permitAll()
+            .anyRequest().authenticated())
+        .headers(headers -> headers.frameOptions(frame -> frame.sameOrigin()))
+        .httpBasic(Customizer.withDefaults()).build();
+  }
 }

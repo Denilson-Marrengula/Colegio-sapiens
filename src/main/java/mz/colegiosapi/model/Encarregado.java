@@ -6,7 +6,6 @@ import jakarta.validation.constraints.*;
 @Entity
 @Table(name = "encarregados", uniqueConstraints = @UniqueConstraint(columnNames = "documento"))
 public class Encarregado {
-
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;

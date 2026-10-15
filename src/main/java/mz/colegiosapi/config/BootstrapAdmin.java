@@ -11,20 +11,15 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 
 @Configuration
 public class BootstrapAdmin {
-
-    @Bean
-    CommandLineRunner createInitialAdmin(UserRepository users, PasswordEncoder encoder,
+    @Bean CommandLineRunner createInitialAdmin(UserRepository users, PasswordEncoder encoder,
             @Value("${app.bootstrap.username}") String username,
             @Value("${app.bootstrap.password}") String password,
             @Value("${app.bootstrap.name}") String name) {
         return args -> {
             if (!users.existsByUsername(username)) {
                 UserAccount admin = new UserAccount();
-                admin.setUsername(username);
-                admin.setNome(name);
-                admin.setRole(Role.ADMIN);
-                admin.setPasswordHash(encoder.encode(password));
-                admin.setActivo(true);
+                admin.setUsername(username); admin.setNome(name); admin.setRole(Role.ADMIN);
+                admin.setPasswordHash(encoder.encode(password)); admin.setActivo(true);
                 users.save(admin);
             }
         };
