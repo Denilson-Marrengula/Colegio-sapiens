@@ -3,7 +3,6 @@ package mz.colegiosapi.config;
 import mz.colegiosapi.model.Role;
 import mz.colegiosapi.model.UserAccount;
 import mz.colegiosapi.repo.UserRepository;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -11,15 +10,20 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 
 @Configuration
 public class BootstrapAdmin {
-    @Bean CommandLineRunner createInitialAdmin(UserRepository users, PasswordEncoder encoder,
-            @Value("${app.bootstrap.username}") String username,
-            @Value("${app.bootstrap.password}") String password,
-            @Value("${app.bootstrap.name}") String name) {
+    private static final String[] ADMIN_USERNAMES = { "jemisse1st@gmail.com", "Admin@gmail.com" };
+
+    @Bean
+    CommandLineRunner createInitialAdmins(UserRepository users, PasswordEncoder encoder) {
         return args -> {
-            if (!users.existsByUsername(username)) {
+            for (String username : ADMIN_USERNAMES) {
+                if (users.existsByUsername(username))
+                    continue;
                 UserAccount admin = new UserAccount();
-                admin.setUsername(username); admin.setNome(name); admin.setRole(Role.ADMIN);
-                admin.setPasswordHash(encoder.encode(password)); admin.setActivo(true);
+                admin.setUsername(username);
+                admin.setNome("Administrador do Sistema");
+                admin.setRole(Role.ADMIN);
+                admin.setPasswordHash(encoder.encode(username));
+                admin.setActivo(true);
                 users.save(admin);
             }
         };
